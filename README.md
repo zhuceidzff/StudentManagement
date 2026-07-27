@@ -23,14 +23,40 @@
 - 支持退出登录
 - 未登录访问受保护页面会自动跳回登录页
 
-### 2. 学生管理（规划中 / 开发中）
+### 2. 学生基本信息列表
 
-- 登录成功页展示学生基本信息列表（学号、姓名、性别、班级、电话、备注）
-- 支持按学号、姓名、班级模糊搜索
-- 添加学生
-- 删除学生
-- 修改学生
-- 分页导航（每页 1–20 条，首页 / 末页 / 上一页 / 下一页）
+- 登录成功页展示学生基本信息列表
+- 字段：学号、姓名、性别、班级、电话、备注
+- 数据来源：`usermanagement.student` 表
+
+### 3. 模糊搜索
+
+- 列表上方提供搜索框
+- 支持在 **学号、姓名、班级** 字段中进行模糊查询
+
+### 4. 添加学生
+
+- 列表上方提供「添加学生」入口
+- 打开新页面填写学生信息
+- 添加成功后返回列表页，并显示「添加学生信息成功」
+- 自动刷新表格内容
+
+### 5. 删除学生
+
+- 表格「操作」列提供「删除」按钮
+- 确认后删除该行记录并刷新表格
+
+### 6. 修改学生
+
+- 「删除」按钮后提供「修改」按钮
+- 打开编辑页面修改学生信息
+- 保存后返回列表页并显示最新结果
+
+### 7. 分页导航
+
+- 表格下方提供分页导航栏
+- 可设置每页显示条数（**1–20**）
+- 提供：第一页、最后一页、上一页、下一页
 
 ## 数据库设计
 
@@ -73,7 +99,7 @@ npm install
 cp .env.example .env.local
 ```
 
-关键变量说明：
+环境变量说明：
 
 ```env
 # PostgreSQL / Supabase 连接字符串（数据库名：usermanagement）
@@ -87,6 +113,23 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
 > 请先在 Supabase / PostgreSQL 中创建名为 `usermanagement` 的数据库。
+
+本地开发也可使用 Docker 快速启动 PostgreSQL：
+
+```bash
+docker run -d --name student-pg \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=usermanagement \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+对应 `.env.local`：
+
+```env
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/usermanagement
+JWT_SECRET=student-management-dev-secret-change-in-production-2026
+```
 
 ### 3. 初始化数据表与默认管理员
 
@@ -107,6 +150,22 @@ npm run dev
 
 浏览器访问 [http://localhost:3000](http://localhost:3000)。
 
+## 页面与接口
+
+| 路径 | 说明 |
+|------|------|
+| `/` | 登录页 |
+| `/welcome` | 欢迎页 + 学生列表 / 搜索 / 分页 |
+| `/students/new` | 添加学生 |
+| `/students/[id]/edit` | 修改学生 |
+| `POST /api/auth/login` | 登录 |
+| `POST /api/auth/logout` | 退出登录 |
+| `GET /api/students` | 学生列表（支持 q / page / pageSize） |
+| `POST /api/students` | 添加学生 |
+| `GET /api/students/[id]` | 获取单个学生 |
+| `PUT /api/students/[id]` | 修改学生 |
+| `DELETE /api/students/[id]` | 删除学生 |
+
 ## 常用脚本
 
 | 命令 | 说明 |
@@ -124,21 +183,30 @@ npm run dev
 ```text
 src/
   app/
-    page.tsx                 # 首页登录
-    welcome/page.tsx         # 登录成功欢迎页
-    api/auth/login/          # 登录 API
-    api/auth/logout/         # 退出登录 API
+    page.tsx                      # 首页登录
+    welcome/page.tsx              # 欢迎页 + 学生列表
+    students/new/page.tsx         # 添加学生
+    students/[id]/edit/page.tsx   # 修改学生
+    api/auth/login/               # 登录 API
+    api/auth/logout/              # 退出登录 API
+    api/students/                 # 学生 CRUD API
   components/
-    login-form.tsx           # 登录表单
-    ui/                      # 基础 UI 组件
+    login-form.tsx
+    student-form.tsx
+    student-table.tsx
+    student-search-bar.tsx
+    pagination-bar.tsx
+    ui/                           # 基础 UI 组件
   db/
-    schema.ts                # Drizzle 表定义
-    index.ts                 # 数据库连接
-    seed.ts                  # 初始化脚本
+    schema.ts                     # Drizzle 表定义
+    index.ts                      # 数据库连接
+    seed.ts                       # 初始化脚本
   lib/
-    auth.ts                  # 会话与密码工具
-    utils.ts                 # cn 工具函数
-  middleware.ts              # 路由鉴权
+    auth.ts                       # 会话与密码工具
+    students.ts                   # 学生数据访问
+    validators.ts                 # 表单校验
+    utils.ts
+  middleware.ts                   # 路由鉴权
 ```
 
 ## Git 分支策略
@@ -149,7 +217,7 @@ src/
 |------|------|
 | `feature/login` | 登录功能 |
 | `feature/student-list` | 学生列表、搜索、分页 |
-| `feature/student-crud` | 学生增删改 |
+| `feature/student-crud` | 学生增删改（可与列表分支一并交付） |
 
 ## 开发日志
 
@@ -158,7 +226,9 @@ src/
 - 初始化 Next.js 15 项目
 - 完成登录功能：首页登录、admin 表校验、JWT Cookie 会话、欢迎页跳转
 - 编写数据库 schema（admin / student）与 seed 脚本
-- 编写中文 README
+- 完成学生列表展示、模糊搜索、分页导航（每页 1–20 条）
+- 完成学生添加 / 删除 / 修改，并在列表页展示操作结果提示
+- 编写并持续更新中文 README
 
 ---
 
